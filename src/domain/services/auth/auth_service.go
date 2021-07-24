@@ -11,19 +11,27 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"oauth2_example/src/config"
+	inmemorycache "oauth2_example/src/infra/in_memory_cache"
 )
 
 const oAuth2RedirectURI = "http://localhost:3000/auth/oauth2_callback"
 
-func GenerateOAuth2URL() string {
+var cache = inmemorycache.New()
+
+func GenerateOAuth2URI() string {
+	requestIdentifier := uuid.NewString()
+
+	cache.SetWithExpiration(requestIdentifier, struct{}{}, 1*time.Minute)
+
 	return fmt.Sprintf(
 		"https://accounts.spotify.com/authorize?response_type=code&client_id=%s&scope=%s&redirect_uri=%s&state=%s",
 		config.Configs.OAuth2.ClientID,
 		url.QueryEscape("user-read-private user-read-email"),
 		url.QueryEscape(oAuth2RedirectURI),
-		url.QueryEscape("{'key': 'value'}"),
+		url.QueryEscape(requestIdentifier),
 	)
 }
 
@@ -87,7 +95,14 @@ func exchangeCodeForToken(code string) (*requestSpotifyTokenResponse, error) {
 	return &tokenResponse, nil
 }
 
-func HandleOAuth2Callback(code, state string) (*UserInfo, error) {
+var ErrInvalidRequestIdentifier = errors.New("Invalid request identifier")
+
+func HandleOAuth2Callback(code, requestIdentifier string) (*UserInfo, error) {
+	if !cache.Has(requestIdentifier) {
+		return nil, errors.WithStack(ErrInvalidRequestIdentifier)
+	}
+	cache.Delete(requestIdentifier)
+
 	tokenResponse, err := exchangeCodeForToken(code)
 	if err != nil {
 		return nil, errors.WithStack(err)
