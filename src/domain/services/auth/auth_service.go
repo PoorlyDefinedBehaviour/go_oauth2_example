@@ -130,9 +130,7 @@ func fetchUserInfo(token string) (*UserInfo, error) {
 	var info UserInfo
 	err = json.Unmarshal(responseBodyAsBytes, &info)
 	if err != nil {
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
+		return nil, errors.WithStack(err)
 	}
 
 	return &info, nil
