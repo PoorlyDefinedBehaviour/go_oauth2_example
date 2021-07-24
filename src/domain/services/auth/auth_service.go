@@ -35,7 +35,7 @@ type requestSpotifyTokenResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-func HandleOAuth2Callback(code, state string) (*UserInfo, error) {
+func exchangeCodeForToken(code string) (*requestSpotifyTokenResponse, error) {
 	form := url.Values{
 		"grant_type":   {"authorization_code"},
 		"code":         {code},
@@ -80,6 +80,15 @@ func HandleOAuth2Callback(code, state string) (*UserInfo, error) {
 	var tokenResponse requestSpotifyTokenResponse
 
 	err = json.Unmarshal(responseBodyAsBytes, &tokenResponse)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return &tokenResponse, nil
+}
+
+func HandleOAuth2Callback(code, state string) (*UserInfo, error) {
+	tokenResponse, err := exchangeCodeForToken(code)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
