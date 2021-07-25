@@ -22,10 +22,10 @@ func New() *InMemoryCache {
 		store: make(map[interface{}]entry),
 	}
 
-	cleaner := expiredEntryCleaner{Stop: make(chan struct{})}
+	cleaner := expiredEntryCleaner{stop: make(chan struct{})}
 
 	runtime.SetFinalizer(cache, func(cache *InMemoryCache) {
-		cleaner.Stop <- struct{}{}
+		cleaner.stop <- struct{}{}
 	})
 
 	go cleaner.deleteEntriesWhenTheyExpire(cache)
@@ -34,7 +34,7 @@ func New() *InMemoryCache {
 }
 
 type expiredEntryCleaner struct {
-	Stop chan struct{}
+	stop chan struct{}
 }
 
 func (cleaner *expiredEntryCleaner) deleteEntriesWhenTheyExpire(cache *InMemoryCache) {
@@ -55,7 +55,7 @@ func (cleaner *expiredEntryCleaner) deleteEntriesWhenTheyExpire(cache *InMemoryC
 
 			cache.mutex.Unlock()
 
-		case <-cleaner.Stop:
+		case <-cleaner.stop:
 			return
 		}
 	}
